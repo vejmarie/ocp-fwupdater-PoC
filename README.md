@@ -9,6 +9,8 @@ This project implements a basic TFTP client on an RP2350 board connected to a Wi
 
 ## Hardware Setup
 
+Please refere to HARDWARE.md as to have a clearer view at how to assemble your setup
+
 This Proof of Concept (PoC) relies on a microcontroller connected to:
 
 - 1× SPI-to-Ethernet adapter (example: Wiznet W5500)
