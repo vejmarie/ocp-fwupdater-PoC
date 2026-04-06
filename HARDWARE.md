@@ -159,7 +159,3 @@ GND -> common ground
 - TMUX1574 product page: https://www.ti.com/product/TMUX1574
 - Winbond 25Q256JVFQ datasheet: (refer to Winbond product pages / datasheet for pinout and timing)
 
-If you want, I can produce:
-- A printable wiring table (component → pin → Pico GPIO)
-- A schematic-style diagram (PNG / SVG) showing exact pin connections
-- Recommended values for pull resistors for the RP2350 errata case (if you provide the chip revision or preferred pull direction)
