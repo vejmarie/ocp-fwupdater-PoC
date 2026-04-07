@@ -21,6 +21,9 @@ import (
 	"w5500"
 	"strings"
 	"drivers/flash"
+	"hash"
+	"crypto/md5"
+	"encoding/hex"
 )
 
 var (
@@ -35,6 +38,9 @@ type ethPacket struct {
 	block  uint16
 	frame  []byte
 }
+
+var hasher hash.Hash
+var hasherSPI hash.Hash
 
 // TFTP opcodes
 const (
@@ -815,6 +821,7 @@ func handleTxQueue(s *wiznet.Socket, DefaultClientConfig ClientNetworkConfig) {
 
 func runSPI(pageSz uint32, target *flash.Device) {
 	page := make([]byte, pageSz)
+	SPIpage := make([]byte, pageSz)
 	count := uint32(0)
 	pgCount := uint32(0)
 	for {
@@ -827,8 +834,14 @@ func runSPI(pageSz uint32, target *flash.Device) {
 			if uint32(n) != pageSz {
 				logOutput("Error during spi-nor write")
 			} 
+			for target.WaitUntilReady() != nil {
+		        }
+			hasher.Write(page)
+			// We need to read back the page and compute the SPI hash
+			_,_ = target.ReadAt(SPIpage, int64(pgCount) * int64(pageSz))
+			hasherSPI.Write(SPIpage)
 			pgCount++
-			count=0
+                        count=0
 		}
 		
 	}
@@ -893,6 +906,7 @@ func logStartStop() {
 	fmt.Printf("===================================================\n")
 }
 
+//go:inline
 func logOutput(vals ...interface{}) {
 	newparameters := make([]interface{}, len(vals)-1)
 	for i, v := range vals {
@@ -914,6 +928,8 @@ func main() {
 	AckPkts = make(chan ethPacket, 2)
 
 	time.Sleep(2 * time.Second)
+	hasher = md5.New()
+	hasherSPI = md5.New()
 
 	// Let's initialize the SPI NOR on spi1 and see if everything is ok
         chipselect := machine.GPIO13
@@ -1246,14 +1262,14 @@ func main() {
 								pktSize = (n - pktIndex)
 							}
 							pkt, _ := ParseTFTPDataPacket(rx[pktIndex+2:lastByte], pktSize)
-							// We can print a # every 1024kB
 							DefaultClientConfig.Boot.TFTPTransferredBytes += len(pkt.Data)
+
 							// We can push the data to the 
 							// SPI-NOR
 							for i := 0 ; i < len(pkt.Data); i++ {
 								spiQueue <- pkt.Data[i]
 							}	
-							
+							// We can print a # every 1024kB
 							if DefaultClientConfig.Boot.TFTPTransferredBytes >
 								(DefaultClientConfig.Boot.TFTPPreviousTransferredBytes + 1024*1024) {
 								promptCount++
@@ -1281,9 +1297,11 @@ func main() {
 					
 								// we might have to purge up to the time we are getting
 								// a packet which is matching the expected it
+
 								for (answerPkt.block - 1) != pkt.Block {
-									answerPkt = <-AckPkts
+									answerPkt = <- AckPkts
 								}
+
 								txQueue <- answerPkt
 								if len(pkt.Data) < int(DefaultClientConfig.Boot.TFTPblksize) {
 									led.Set(false)
@@ -1304,6 +1322,15 @@ func main() {
 									DefaultClientConfig.Boot.TFTPServerport = 0
 									DefaultClientConfig.Boot.TFTPport = 0
 									logOutput("Dying ...")
+									logStartStop()
+									// We must die only when txQueue has been emptied
+									for len(txQueue) != 0 {	
+										time.Sleep(10 * time.Millisecond)
+									}
+									// this is where I must compute the md5sum
+									time.Sleep(2 * time.Second)
+									logOutput("Net Firmware hash: %s", hex.EncodeToString(hasher.Sum(nil)))
+									logOutput("SPI Firmware hash: %s", hex.EncodeToString(hasherSPI.Sum(nil)))
 									logStartStop()
 									log.Fatal("")
 								}

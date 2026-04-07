@@ -232,11 +232,29 @@ func (dev *Device) Size() int64 {
 // ReadAt satisfies the io.ReaderAt interface, and fills the provided buffer
 // with memory read from the device starting at the provided address.
 func (dev *Device) ReadAt(buf []byte, addr int64) (int, error) {
+	var high bool
+	high = false
 	if err := dev.WaitUntilReady(); err != nil {
 		return 0, err
 	}
+	if ( uint32(addr) & 0xff000000 ) != 0 {
+                if err := dev.WriteEnable(); err != nil {
+                        return 0,err
+                }
+		// We have to 
+		extSet := []byte{0x01}
+		dev.trans.writeCommand(cmdExtAddrReg,extSet)
+		high = true
+	}
 	if err := dev.trans.readMemory(uint32(addr), buf); err != nil {
 		return 0, err
+	}
+	if high {
+		if err := dev.WriteEnable(); err != nil {
+                        return 0,err
+                }
+		extUnset := []byte{0x00}
+		dev.trans.writeCommand(cmdExtAddrReg,extUnset)
 	}
 	return len(buf), nil
 }
@@ -245,6 +263,10 @@ func (dev *Device) ReadAt(buf []byte, addr int64) (int, error) {
 // one page at a time, starting at the provided address. This method assumes
 // that the destination is already erased.
 func (dev *Device) WriteAt(buf []byte, addr int64) (n int, err error) {
+
+	var high bool
+        high = false
+
 	remain := uint32(len(buf))
 	idx := uint32(0)
 	loc := uint32(addr)
@@ -260,12 +282,32 @@ func (dev *Device) WriteAt(buf []byte, addr int64) (n int, err error) {
 		if leftOnPage < remain {
 			toWrite = leftOnPage
 		}
+		// If loc is in upper location we need to switch
+		// the extended address bit as we run in 3 bytes addressing mode
+		if ( ( loc & 0xFF000000 ) != 0 ) && !high {
+			high = true	
+			extSet := []byte{0x01}
+	                dev.trans.writeCommand(cmdExtAddrReg,extSet)		
+//			if err = dev.WaitUntilReady(); err != nil {
+//	                        return
+//	                }
+		}
+		if err = dev.WriteEnable(); err != nil {
+                        return
+                }
 		if err = dev.trans.writeMemory(loc, buf[idx:idx+toWrite]); err != nil {
 			return
 		}
 		idx += toWrite
 		loc += toWrite
 		remain -= toWrite
+	}
+	if high {
+		if err = dev.WriteEnable(); err != nil {
+                        return
+                }
+                extUnset := []byte{0x00}
+                dev.trans.writeCommand(cmdExtAddrReg,extUnset)
 	}
 	return len(buf) - int(remain), nil
 }
@@ -381,6 +423,7 @@ const (
 	cmdEraseSector     = 0x20 // erase a sector of memory
 	cmdEraseBlock      = 0xD8 // erase a block of memory
 	cmdEraseChip       = 0xC7 // erase the entire chip
+	cmdExtAddrReg	   = 0xC5 // Extended Address Register in 3-bytes address mode
 )
 
 type Error uint8
