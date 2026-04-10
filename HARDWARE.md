@@ -77,18 +77,18 @@ GND -> common ground
 - SPI0 CS:   GPIO17 → W5500 CS 
 - W5500 INT: GPIO21 → W5500 IRQ
 - W5500 RESET: GPIO20 → W5500 RESET
-- TMUX SCLK : S1A → SPI1 SCLK GPIO14 (with 30 Ω series resistor close to Pico2)
-- TMUX MOSI : S2A → SPI1 MOSI GPIO15 (30 Ω series resistor)
-- TMUX MISO : S3A → SPI1 MISO GPIO12 
-- TMUX CS: S4A → SPI1 CS GPIO13 (30 Ω series resistor)
+- TMUX SCLK : S2A → SPI1 SCLK GPIO14 (with 30 Ω series resistor close to Pico2)
+- TMUX MOSI : S1A → SPI1 MOSI GPIO15 (30 Ω series resistor)
+- TMUX MISO : S4A → SPI1 MISO GPIO12 
+- TMUX CS: S3A → SPI1 CS GPIO13 (30 Ω series resistor)
 - TMUX SEL:  Connect to a spare Pico2 GPIO (used to flip SPI‑NOR control between Pico2 and host)
 - TMUX VCC: 3.3V + 0.1uF capacitor to GND
 - VBUS → VSYS (Pico2 powering breadboard 3.3 V rail)
 - Common GND: Pico2 GND → all devices
-- SPI-NOR SCLK: D1
-- SPI-NOR MOSI: D2
-- SPI-NOR MISO: D3
-- SPI-NOR CS: D4
+- SPI-NOR SCLK: D2
+- SPI-NOR MOSI: D1
+- SPI-NOR MISO: D4
+- SPI-NOR CS: D3
 - SPI-NOR VCC: 3.3V 
 - SPI-NOR GND: GND
 - 3.3 V isolation: Add diode on Pico2 3.3 V rail when sharing SPI‑NOR with an external host to prevent current backflow between power domains.
